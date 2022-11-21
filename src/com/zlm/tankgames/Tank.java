@@ -1,18 +1,34 @@
 package com.zlm.tankgames;
 
+import java.awt.*;
+import java.util.Vector;
+
 public class Tank {
     // x坐标
     protected int x;
     // y坐标
     protected int y;
 
-    // 坦克方向
+    /**
+     * direct   坦克方向(0:向上，1:向下，2:向左，3:向右)
+     */
     protected int direct;
     // 坦克移动速度
-    protected int speed = 3;
+    protected int speed = 5;
 
     // 坦克类型，0：我方，1：敌方
     protected int type = 0;
+
+    // 记录当前炮管的位置
+    protected int tubeEndX = 0;
+    protected int tubeEndY = 0;
+
+    //定义子弹(原来定义的子弹是一个对象，在发射第二个子弹的时候，第一个子弹会被回收-重新new了，所以需要定义集合存取)
+    //protected Shot shot = null;
+    // 是否存活
+    boolean isLive = true;
+
+    protected Color color = null;
 
     public Tank(int x, int y) {
         this.x = x;
@@ -37,19 +53,62 @@ public class Tank {
     protected int tubeLength = 20;
 
     public void moveUp() {
-        y -= speed;
+        y = y > 0 ? y - speed : y;
     }
 
     public void moveDown() {
-        y += speed;
+        y = y + rectHeight < DrawTanksPanel.screenWidth ? y + speed : y;
     }
 
     public void moveLeft() {
-        x -= speed;
+        x = x > 0 ? x - speed : x;
     }
 
     public void moveRight() {
-        x += speed;
+        x = x + rectHeight < DrawTanksPanel.screenWidth ? x + speed : x;
+    }
+
+    /**
+     * 根据当前坦克方向，创建shot对象
+     * 判断坦克方向(0:向上，1:向下，2:向左，3:向右)
+     * 按照坦克左上角为参照，计算炮管末端坐标，即为子弹坐标
+     *
+     * @return
+     */
+    public Shot initShot() {
+        int shotX = 0;
+        int shotY = 0;
+        Shot shot = null;
+        System.out.println("创建子弹...");
+        switch (getDirect()) {
+            case 0:
+                // 坦克初始x坐标 + (坦克矩形边的宽度 - 坦克身体宽度 ) /2
+                shotX = getX() + getRectWidth() + getBodyWidth() / 2;
+                // 坦克初始y坐标 + (坦克矩形边的高度 - 坦克身体高度 ) /2   得到坦克炮管初始位置
+                // 坦克炮管初始位置 - 坦克炮管长度  得到坦克炮管终点位置坐标
+                shotY = getY() + (getRectHeight() - getBodyHeight()) / 2 - getTubeLength();
+                break;
+            case 1:
+                // x坐标和向上保存一致
+                shotX = getX() + getRectWidth() + getBodyWidth() / 2;
+                // 坦克初始y坐标 + (坦克矩形边的高度 - 坦克身体高度 ) /2 + 坦克身体高度   得到坦克炮管初始位置
+                // 坦克炮管初始位置 + 坦克炮管长度  得到坦克炮管终点位置坐标
+                shotY = getY() + (getRectHeight() - getBodyHeight()) / 2 + getBodyHeight() + getTubeLength();
+                break;
+            case 2:
+                // 坦克初始x坐标 + 坦克矩形边的高度 - 坦克身体高度 ) /2 - 坦克炮管长度
+                shotX = getX() + (getRectHeight() - getBodyHeight()) / 2 - getTubeLength();
+                // 坦克初始y坐标 + 坦克矩形边的宽度 + 坦克身体宽度  /2
+                shotY = getY() + getRectWidth() + getBodyWidth() / 2;
+                break;
+            case 3:
+                // 坦克初始x坐标 + (坦克矩形边的高度 - 坦克身体高度 ) /2 + 坦克身体宽度  + 坦克炮管长度
+                shotX = getX() + (getRectHeight() - getBodyHeight()) / 2 + getBodyWidth() + getTubeLength();
+                // 坦克初始y坐标 + 坦克矩形边的宽度 + 坦克身体宽度  /2
+                shotY = getY() + getRectWidth() + getBodyWidth() / 2;
+                break;
+        }
+        return new Shot(shotX, shotY, getDirect());
     }
 
     public int getX() {
@@ -97,7 +156,7 @@ public class Tank {
     }
 
     public static void setTankX(int tankX) {
-        Tank.tankX = tankX;
+        tankX = tankX;
     }
 
     public static int getTankY() {
@@ -105,7 +164,7 @@ public class Tank {
     }
 
     public static void setTankY(int tankY) {
-        Tank.tankY = tankY;
+        tankY = tankY;
     }
 
     public int getRectWidth() {
@@ -154,5 +213,29 @@ public class Tank {
 
     public void setTubeLength(int tubeLength) {
         this.tubeLength = tubeLength;
+    }
+
+    public int getTubeEndX() {
+        return tubeEndX;
+    }
+
+    public void setTubeEndX(int tubeEndX) {
+        this.tubeEndX = tubeEndX;
+    }
+
+    public int getTubeEndY() {
+        return tubeEndY;
+    }
+
+    public void setTubeEndY(int tubeEndY) {
+        this.tubeEndY = tubeEndY;
+    }
+
+    public Color getColor() {
+        return color;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
     }
 }

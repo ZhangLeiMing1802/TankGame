@@ -6,28 +6,41 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.Vector;
 
-public class DrawTanksPanel extends JPanel implements KeyListener {
+public class DrawTanksPanel extends JPanel implements KeyListener, Runnable {
 
     public static int screenWidth = 800;
     public static int screenHeight = 800;
     //定义我方坦克
-    Tank tank = null;
+    Hero hero = null;
     //定义敌方坦克集合
-    Vector<EnemyTank> tanks = null;
+    Vector<EnemyTank> enemyTanks = null;
+
+    Image image1 = null;
+    Image image2 = null;
+    Image image3 = null;
+
+    Vector<Bobm> bobms = new Vector<>();
 
     public DrawTanksPanel() {
         // 初始化我方坦克对象
-        tank = new Tank(Tank.tankX, Tank.tankY);
-        tanks = new Vector<>();
+        hero = new Hero(Tank.tankX, Tank.tankY);
+        enemyTanks = new Vector<>();
         for (int i = 0; i < EnemyTank.enemyTankNum; i++) {
             EnemyTank enemyTank = new EnemyTank(EnemyTank.enemyX * (i + 1), EnemyTank.enemyY);
             // 设置炮管向下
             enemyTank.setDirect(1);
             //设置坦克类型
             enemyTank.setType(1);
-            tanks.add(enemyTank);
+            Thread thread = new Thread(enemyTank);
+            thread.start();
+            System.out.println("敌方坦克初始位置x:" + enemyTank.getX() + ",y:" + enemyTank.getY());
+            enemyTanks.add(enemyTank);
         }
+        image1 = Toolkit.getDefaultToolkit().getImage(DrawTanksPanel.class.getResource("/bomb_1.gif"));
+        image2 = Toolkit.getDefaultToolkit().getImage(DrawTanksPanel.class.getResource("/bomb_2.gif"));
+        image3 = Toolkit.getDefaultToolkit().getImage(DrawTanksPanel.class.getResource("/bomb_3.gif"));
     }
+
 
     @Override
     public void paint(Graphics g) {
@@ -37,11 +50,61 @@ public class DrawTanksPanel extends JPanel implements KeyListener {
         // 填充背景色
         g.fillRect(0, 0, screenWidth, screenHeight);
         // 绘制我方坦克
-        drawTank(g, tank);
+        drawTank(g, hero);
         // 绘制敌方坦克
-        for (int i = 0; i < EnemyTank.enemyTankNum; i++) {
-            drawTank(g, tanks.get(i));
+        for (int i = 0; i < enemyTanks.size(); i++) {
+            if (enemyTanks.get(i).isLive) {
+                // 绘制坦克
+                drawTank(g, enemyTanks.get(i));
+                Vector<Shot> shots = enemyTanks.get(i).shots;
+                for (int j = 0; j < shots.size(); j++) {
+                    Shot shot = shots.get(j);
+                    if (shot != null && shot.getALive()) {
+                        // 绘制子弹
+                        drawShot(g, shots.get(j), enemyTanks.get(i));
+                    } else {
+                        shots.remove(shot);
+                    }
+                }
+            }
         }
+        for (int i = 0; i < hero.shots.size(); i++) {
+            Shot shot = hero.shots.get(i);
+            if (shot != null && shot.getALive()) {
+                // 绘制子弹
+                drawShot(g, shot, hero);
+            } else {
+                System.out.println("移除子弹");
+                hero.shots.remove(shot);
+            }
+        }
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        //绘制爆炸
+        for (int i = 0; i < bobms.size(); i++) {
+            Bobm bobm = bobms.get(i);
+            if (bobm.life > 6) {
+                g.drawImage(image3, bobm.x, bobm.y, this);
+            } else if (bobm.life > 3 && bobm.life < 6) {
+                g.drawImage(image2, bobm.x, bobm.y, this);
+            } else if (bobm.life > 0 && bobm.life < 3) {
+                g.drawImage(image1, bobm.x, bobm.y, this);
+            } else {
+                bobms.remove(bobm);
+            }
+            bobm.downLife();
+            if (bobm.life == 0) {
+                bobms.remove(bobm);
+            }
+        }
+    }
+
+    public void drawShot(Graphics g, Shot shot, Tank tank) {
+        g.setColor(tank.getColor());
+        g.fillOval(shot.getX(), shot.getY(), 4, 4);
     }
 
     /**
@@ -54,10 +117,12 @@ public class DrawTanksPanel extends JPanel implements KeyListener {
             //创建我方坦克
             case 0:
                 g.setColor(Color.yellow);
+                tank.setColor(Color.yellow);
                 break;
             // 创建敌方坦克
             case 1:
                 g.setColor(Color.cyan);
+                tank.setColor(Color.cyan);
                 break;
         }
 
@@ -135,9 +200,15 @@ public class DrawTanksPanel extends JPanel implements KeyListener {
         int startX = tank.getX() + tank.getRectWidth() + tank.getBodyWidth() / 2;
         if (tank.getDirect() == 0) {
             g.drawLine(startX, tankOvalY, startX, tankOvalY - tank.getTubeLength());
+            //记录炮管位置
+            tank.setTubeEndX(startX);
+            tank.setTubeEndY(tankOvalY - tank.getTubeLength());
             return;
         }
         g.drawLine(startX, tankOvalY + tank.getOvalWidth(), startX, tankOvalY + tank.getOvalWidth() + tank.getTubeLength());
+        //记录炮管位置
+        tank.setTubeEndX(startX);
+        tank.setTubeEndY(tankOvalY + tank.getOvalWidth() + tank.getTubeLength());
     }
 
     /**
@@ -193,14 +264,19 @@ public class DrawTanksPanel extends JPanel implements KeyListener {
         int startX = tankOvalX + tank.getOvalWidth();
         int startY = tankOvalY + tank.getBodyWidth() / 2;
         if (tank.getDirect() == 3) {
+            //记录炮管位置
+            tank.setTubeEndX(startX + tank.getTubeLength());
+            tank.setTubeEndY(startY);
             g.drawLine(startX, startY, startX + tank.getTubeLength(), startY);
             return;
         }
         // 向左炮管
         // 起始x和圆盖x一致，终点x=圆盖x-炮管长度
         g.drawLine(tankOvalX, startY, tankOvalX - tank.getTubeLength(), startY);
+        //记录炮管位置
+        tank.setTubeEndX(tankOvalX - tank.getTubeLength());
+        tank.setTubeEndY(startY);
     }
-
 
     @Override
     public void keyTyped(KeyEvent e) {
@@ -210,17 +286,19 @@ public class DrawTanksPanel extends JPanel implements KeyListener {
     @Override
     public void keyPressed(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_W) {
-            tank.setDirect(0);
-            tank.moveUp();
+            hero.setDirect(0);
+            hero.moveUp();
         } else if (e.getKeyCode() == KeyEvent.VK_S) {
-            tank.setDirect(1);
-            tank.moveDown();
+            hero.setDirect(1);
+            hero.moveDown();
         } else if (e.getKeyCode() == KeyEvent.VK_A) {
-            tank.setDirect(2);
-            tank.moveLeft();
+            hero.setDirect(2);
+            hero.moveLeft();
         } else if (e.getKeyCode() == KeyEvent.VK_D) {
-            tank.setDirect(3);
-            tank.moveRight();
+            hero.setDirect(3);
+            hero.moveRight();
+        } else if (e.getKeyCode() == KeyEvent.VK_J) {
+            hero.shotEnemyTank();
         }
         this.repaint();
     }
@@ -228,5 +306,59 @@ public class DrawTanksPanel extends JPanel implements KeyListener {
     @Override
     public void keyReleased(KeyEvent e) {
 
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                Thread.sleep(100);
+                // 先射击后移除  否则空指针
+                hitEnemyTank();
+                this.repaint();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public void hitTank(Shot shot, Tank tank) {
+        int startX = 0, endX = 0, startY = 0, endY = 0;
+        switch (tank.getDirect()) {
+            case 0:
+            case 1:
+                startX = tank.getX();
+                endX = tank.getX() + tank.getBodyWidth() * 2 + tank.getBodyWidth();
+                startY = tank.getY();
+                endY = tank.getY() + tank.getRectHeight();
+                break;
+            case 2:
+            case 3:
+                startX = tank.getX();
+                endX = tank.getX() + tank.getRectHeight();
+                startY = tank.getY();
+                endY = tank.getY() + tank.getBodyWidth() * 2 + tank.getBodyWidth();
+                break;
+        }
+        if ((shot.getX() > startX && shot.getX() < endX) && (shot.getY() > startY && shot.getY() < endY)) {
+            // 击中敌方
+            tank.isLive = false;
+            shot.setALive(false);
+            enemyTanks.remove(tank);
+            System.out.println("图片位置:" + tank.getX() + " , " + tank.getY());
+            bobms.add(new Bobm(tank.getX(), tank.getY()));
+        }
+    }
+
+    public void hitEnemyTank() {
+        //子弹落在坦克的范围内 则击败
+        for (int i = 0; i < hero.shots.size(); i++) {
+            Shot shot = hero.shots.get(i);
+            if (shot != null && shot.getALive()) {
+                for (int j = 0; j < enemyTanks.size(); j++) {
+                    hitTank(hero.shots.get(i), enemyTanks.get(j));
+                }
+            }
+        }
     }
 }

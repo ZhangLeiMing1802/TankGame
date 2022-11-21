@@ -9,7 +9,9 @@ public class TankGames extends JFrame {
     public TankGames() {
         panel = new DrawTanksPanel();
         this.add(panel);
-        this.setSize(DrawTanksPanel.screenWidth, DrawTanksPanel.screenHeight);
+        Thread thread = new Thread(panel);
+        thread.start();
+        this.setSize(DrawTanksPanel.screenWidth + 50, DrawTanksPanel.screenHeight + 50);
         this.addKeyListener(panel);
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.setVisible(true);
@@ -17,10 +19,6 @@ public class TankGames extends JFrame {
     }
 
     public static void main(String[] args) {
-        // new TankGames();
-
-        Runtime runtime = Runtime.getRuntime();
-        int i = runtime.availableProcessors();
-        System.out.println(i);
+         new TankGames();
     }
 }
