@@ -4,8 +4,14 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Scanner;
 import java.util.Vector;
 
+@SuppressWarnings("all")
 public class DrawTanksPanel extends JPanel implements KeyListener, Runnable {
 
     public static int screenWidth = 800;
@@ -25,20 +31,71 @@ public class DrawTanksPanel extends JPanel implements KeyListener, Runnable {
         // 初始化我方坦克对象
         hero = new Hero(Tank.tankX, Tank.tankY);
         enemyTanks = new Vector<>();
-        for (int i = 0; i < EnemyTank.enemyTankNum; i++) {
-            EnemyTank enemyTank = new EnemyTank(EnemyTank.enemyX * (i + 1), EnemyTank.enemyY);
-            // 设置炮管向下
-            enemyTank.setDirect(1);
-            //设置坦克类型
-            enemyTank.setType(1);
-            Thread thread = new Thread(enemyTank);
-            thread.start();
-            System.out.println("敌方坦克初始位置x:" + enemyTank.getX() + ",y:" + enemyTank.getY());
-            enemyTanks.add(enemyTank);
+        System.out.println("请输入你的选择，1：新游戏，2：继续游戏");
+        Scanner scanner = new Scanner(System.in);
+        int type = scanner.nextInt();
+        switch (type) {
+            case 1:
+                for (int i = 0; i < EnemyTank.enemyTankNum; i++) {
+                    EnemyTank enemyTank = new EnemyTank(EnemyTank.enemyX * (i + 1), EnemyTank.enemyY);
+                    // 设置炮管向下
+                    enemyTank.setDirect(1);
+                    //设置坦克类型
+                    enemyTank.setType(1);
+                    Thread thread = new Thread(enemyTank);
+                    thread.start();
+                    System.out.println("敌方坦克初始位置x:" + enemyTank.getX() + ",y:" + enemyTank.getY());
+                    enemyTanks.add(enemyTank);
+                }
+                break;
+            case 2:
+                Vector<Node> nodes = new Vector<>();
+                BufferedReader reader = null;
+                // 取出数据
+                try {
+                    reader = new BufferedReader(new FileReader(Record.src));
+                    int hitNum = Integer.parseInt(reader.readLine());
+                    Record.setScore(hitNum);
+                    String line = "";
+                    while ((line = reader.readLine()) != null) {
+                        String[] s = line.split(" ");
+                        Node n = new Node(Integer.parseInt(s[0]), Integer.parseInt(s[1]), Integer.parseInt(s[2]));
+                        nodes.add(n);
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+                for (int i = 0; i < nodes.size(); i++) {
+                    EnemyTank enemyTank = new EnemyTank(nodes.get(i).getX() * (i + 1), nodes.get(i).getY());
+                    // 设置炮管向下
+                    enemyTank.setDirect(nodes.get(i).getDirect());
+                    //设置坦克类型
+                    enemyTank.setType(1);
+                    Thread thread = new Thread(enemyTank);
+                    thread.start();
+                    System.out.println("敌方坦克初始位置x:" + enemyTank.getX() + ",y:" + enemyTank.getY());
+                    enemyTanks.add(enemyTank);
+                }
+                break;
+            default:
+                System.out.println("你的输入有误...");
         }
+
         image1 = Toolkit.getDefaultToolkit().getImage(DrawTanksPanel.class.getResource("/bomb_1.gif"));
         image2 = Toolkit.getDefaultToolkit().getImage(DrawTanksPanel.class.getResource("/bomb_2.gif"));
         image3 = Toolkit.getDefaultToolkit().getImage(DrawTanksPanel.class.getResource("/bomb_3.gif"));
+
+        //加载音乐
+        AePlayWave aePlayWave = new AePlayWave("src\\111.wav");
+        aePlayWave.start();
     }
 
 
@@ -100,6 +157,26 @@ public class DrawTanksPanel extends JPanel implements KeyListener, Runnable {
                 bobms.remove(bobm);
             }
         }
+
+        // 绘制右侧得分区域
+        drawScore(g);
+
+    }
+
+    public void drawScore(Graphics g) {
+        // 文字
+        g.setColor(Color.black);
+        g.setFont(new Font("宋体", 0, 20));
+        g.drawString("您累计击毁敌方坦克", 820, 50);
+        // 坦克
+        EnemyTank enemyTank = new EnemyTank(820, 80);
+        enemyTank.setType(1);
+        enemyTank.setDirect(0);
+        drawTank(g, enemyTank);
+        // 记录
+        g.setColor(Color.black);
+        g.drawString(Record.getScore() + "", 870, 120);
+        g.setFont(new Font("宋体", 0, 30));
     }
 
     public void drawShot(Graphics g, Shot shot, Tank tank) {
@@ -347,6 +424,8 @@ public class DrawTanksPanel extends JPanel implements KeyListener, Runnable {
             enemyTanks.remove(tank);
             System.out.println("图片位置:" + tank.getX() + " , " + tank.getY());
             bobms.add(new Bobm(tank.getX(), tank.getY()));
+            // 增加击毁次数
+            Record.addNum();
         }
     }
 
@@ -361,4 +440,5 @@ public class DrawTanksPanel extends JPanel implements KeyListener, Runnable {
             }
         }
     }
+
 }
